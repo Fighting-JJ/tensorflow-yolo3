@@ -1,62 +1,9 @@
-# tensorflow-yolo3
+这份代码主要是为了将不同尺度的特征图负责检测不同尺寸大小的物体修改为：
+	不同尺寸的特征图都用来检测同一个尺寸范围的物体
 
-[![license](https://img.shields.io/github/license/mashape/apistatus.svg)](LICENSE)
+做上述修改的原因：
+		读过SSD源码之后发现，SSD中标签数据预处理的过程（end-to-end方式训练网络，将输入标签与输出对齐），只要anchor与ground_truth box的IOU大于阈值，即将该cell的输出标记为 （class\box coordinator）,这样在同一个特征图中可以有多个anchor、多个cell同时预测一个物体（个人理解：手臂的位置基本在人体的中间，根据手臂也大致可以预测到人体的位置），即输出多个预测框及score，最后通过nms选出最好的一个；另外，在相邻的特征图上也存在一个物体被多个特征图检测的机会。因此SSD虽然卷积层数比较少，但是检测效果也可以的原因。
 
-
----
-
-## Detection
-
-1、If use the pretrain model, download YOLOV3 weights from [YOLO website](http://pjreddie.com/darknet/yolo/).  
-2、Modify yolo3_weights_path in the config.py  
-3、Run detect.py  
-
-```
-wget https://pjreddie.com/media/files/yolov3.weights  
-python detect.py --image_file ./test.jpg  
-```
-![result](https://raw.githubusercontent.com/aloyschen/tensorflow-yolo3/master/result.jpg)
-
-
-## Training
-
-convert train and val data to tfrecord
-
-1、Download the COCO2017 dataset from [COCO_website](http://cocodataset.org)  
-2、Modify the train and val data path in the config.py  
-3、If you want to use original pretrained weights for YOLOv3, download from [darknet53 weights](https://pjreddie.com/media/files/darknet53.conv.74)   
-4、rename it as darknet53.weights, and modify the darknet53_weights_path in the config.py 
-
-```
-wget https://pjreddie.com/media/files/darknet53.conv.74`  
-```  
-4、Modify the data augmentation parameters and train parameters  
-5、Run yolo_train.py  
-
-## Evaluation
-1、Modify the pre_train_yolo3 and model_dir in config.py  
-2、Run detect.py  
-
-```
-python detect.py --image_file ./test.jpg
-```
-
-## Train Image show on Tensorboard
-![train](https://github.com/aloyschen/tensorflow-yolo3/blob/master/model_data/TrainImage.png)   
-
-## Notice
-
-If you want to modify the Gpu index, please modify gpu_index in config.py
-
-## Credit
-```
-@article{yolov3,
-	title={YOLOv3: An Incremental Improvement},
-	author={Redmon, Joseph and Farhadi, Ali},
-	journal = {arXiv},
-	year={2018}
-}
-```
-
-## Reference
-* [keras-yolo3](https://github.com/qqwweee/keras-yolo3)
+修改方案如下：
+		最初的yolo，9个anchor平均分配给3个featuremap，然后选区iou面积最大的anchor作为预测cell，即三个featuremap中，只有一个featuremap且只有一个cell进行预测，训练回归。相较于SSD，少的可怜。因此才有了修改的想法，只检测一个尺寸的物体。
+		三个特征图分别处理，在每个特征图的anchor上选IOU最大的，作为prior cell，这样就有3个尺度的特征图进行训练，并且每个训练过程中公用特征提取部分都可被训练到。
