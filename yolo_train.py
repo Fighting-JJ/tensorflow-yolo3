@@ -40,7 +40,7 @@ def train():
     tf.summary.scalar('loss', loss)
     merged_summary = tf.summary.merge_all()
     global_step = tf.Variable(0, trainable = False)
-    lr = tf.train.exponential_decay(config.learning_rate, global_step, decay_steps = 2000, decay_rate = 0.8)
+    lr = tf.train.exponential_decay(config.learning_rate, global_step, decay_steps = 1000, decay_rate = 0.8)
     optimizer = tf.train.AdamOptimizer(learning_rate = lr)
     # 如果读取预训练权重，则冻结darknet53网络的变量
     update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
@@ -71,8 +71,8 @@ def train():
                 loss_value += train_loss
                 duration = time.time() - start_time
                 examples_per_sec = float(duration) / config.train_batch_size
-                format_str = ('Epoch {} step {},  train loss = {} ( {} examples/sec; {} ''sec/batch)')
-                print(format_str.format(epoch, step, loss_value / global_step_value, examples_per_sec, duration))
+                format_str = ('Epoch {} step {}, step_loss = {} train loss = {} ( {} examples/sec; {} ''sec/batch)')
+                print(format_str.format(epoch, step, train_loss, loss_value / global_step_value, examples_per_sec, duration))
                 summary_writer.add_summary(summary = tf.Summary(value = [tf.Summary.Value(tag = "train loss", simple_value = train_loss)]), global_step = step)
                 summary_writer.add_summary(summary, step)
                 summary_writer.flush()

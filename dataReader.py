@@ -127,6 +127,69 @@ class Reader:
         return y_true[0], y_true[1], y_true[2]
 
 
+    def ribbon_Preprocess_true_boxes(self, true_boxes):
+        """
+        Introduction
+        ------------
+            对训练数据的ground truth box进行预处理
+        Parameters
+        ----------
+            true_boxes: ground truth box 形状为[boxes, 5], x_min, y_min, x_max, y_max, class_id
+
+            np.array(anchors).reshape(-1, 2) anchor 是 9*2 的np.array
+        """
+        num_layers = len(self.anchors) // 3  
+        anchor_mask = [[6, 7, 8], [3, 4, 5], [0, 1, 2]]
+        true_boxes = np.array(true_boxes, dtype='float32')
+        input_shape = np.array([self.input_shape, self.input_shape], dtype='int32')
+        boxes_xy = (true_boxes[..., 0:2] + true_boxes[..., 2:4]) // 2.
+        boxes_wh = true_boxes[..., 2:4] - true_boxes[..., 0:2]
+        true_boxes[..., 0:2] = boxes_xy / input_shape[::-1]
+        true_boxes[..., 2:4] = boxes_wh / input_shape[::-1]
+
+
+        grid_shapes = [input_shape // 32, input_shape // 16, input_shape // 8]
+        y_true = [np.zeros((grid_shapes[l][0], grid_shapes[l][1], len(anchor_mask[l]), 5 + self.num_classes), dtype='float32') for l in range(num_layers)]
+        # 这里扩充维度是为了后面应用广播计算每个图中所有box的anchor互相之间的iou
+##################################################################################################################
+        # 在这里将anchor且分为三个，分别计算各自的true_label
+        for index in range(num_layers):
+            anchors = np.expand_dims(self.anchors[anchor_mask[index]], 0)
+            anchors_max = anchors / 2.
+            anchors_min = -anchors_max
+            # 因为之前对box做了padding, 因此需要去除全0行
+            valid_mask = boxes_wh[..., 0] > 0
+            wh = boxes_wh[valid_mask]
+            # 为了应用广播扩充维度
+            wh = np.expand_dims(wh, -2)
+            # wh 的shape为[box_num, 1, 2]
+            boxes_max = wh / 2.
+            boxes_min = -boxes_max
+
+            intersect_min = np.maximum(boxes_min, anchors_min)
+            intersect_max = np.minimum(boxes_max, anchors_max)
+            intersect_wh = np.maximum(intersect_max - intersect_min, 0.)
+            intersect_area = intersect_wh[..., 0] * intersect_wh[..., 1]
+            box_area = wh[..., 0] * wh[..., 1]
+            anchor_area = anchors[..., 0] * anchors[..., 1]
+            iou = intersect_area / (box_area + anchor_area - intersect_area)
+
+            # 找出和ground truth box的iou最大的anchor box, 然后将对应不同比例的负责该ground turth box 的位置置为ground truth box坐标
+            best_anchor = np.argmax(iou, axis = -1)
+            for t, n in enumerate(best_anchor):
+                    if n in anchor_mask[index]:
+                        i = np.floor(true_boxes[t, 0] * grid_shapes[index][1]).astype('int32')
+                        j = np.floor(true_boxes[t, 1] * grid_shapes[index][0]).astype('int32')
+                        k = anchor_mask[index].index(n)
+                        c = true_boxes[t, 4].astype('int32')
+                        y_true[index][j, i, k, 0:4] = true_boxes[t, 0:4]
+                        y_true[index][j, i, k, 4] = 1.
+                        y_true[index][j, i, k, 5 + c] = 1.
+
+###################################################################################################################        
+        return y_true[0], y_true[1], y_true[2]
+
+
 
     def read_annotations(self):
         """
@@ -252,7 +315,8 @@ class Reader:
         bbox = tf.concat(axis = 0, values = [xmin, ymin, xmax, ymax, label])
         bbox = tf.transpose(bbox, [1, 0])
         image, bbox = self.Preprocess(image, bbox)
-        bbox_true_13, bbox_true_26, bbox_true_52 = tf.py_func(self.Preprocess_true_boxes, [bbox], [tf.float32, tf.float32, tf.float32])
+        # 修改为ribbon_Preprocess_true_boxes
+        bbox_true_13, bbox_true_26, bbox_true_52 = tf.py_func(self.ribbon_Preprocess_true_boxes, [bbox], [tf.float32, tf.float32, tf.float32])
         return image, bbox, bbox_true_13, bbox_true_26, bbox_true_52
 
     def Preprocess(self, image, bbox):
@@ -286,6 +350,7 @@ class Reader:
         ymin = ymin * new_high / image_high + dy
         ymax = ymax * new_high / image_high + dy
         bbox = tf.concat([xmin, ymin, xmax, ymax, label], 1)
+        """
         if self.mode == 'train':
             # 随机左右翻转图片
             def _flip_left_right_boxes(boxes):
@@ -297,6 +362,7 @@ class Reader:
             flip_left_right = tf.greater(tf.random_uniform([], dtype = tf.float32, minval = 0, maxval = 1), 0.5)
             image = tf.cond(flip_left_right, lambda : tf.image.flip_left_right(image), lambda : image)
             bbox = tf.cond(flip_left_right, lambda: _flip_left_right_boxes(bbox), lambda: bbox)
+        """    
         # 将图片归一化到0和1之间
         image = image / 255.
         image = tf.clip_by_value(image, clip_value_min = 0.0, clip_value_max = 1.0)
@@ -320,7 +386,7 @@ class Reader:
         dataset = tf.data.TFRecordDataset(filenames = self.TfrecordFile)
         dataset = dataset.map(self.parser, num_parallel_calls = 10)
         if self.mode == 'train':
-            dataset = dataset.repeat().shuffle(9000).batch(batch_size).prefetch(batch_size)
+            dataset = dataset.repeat().shuffle(config.shuffle_size).batch(batch_size).prefetch(batch_size)
         else:
             dataset = dataset.repeat().batch(batch_size).prefetch(batch_size)
         return dataset
