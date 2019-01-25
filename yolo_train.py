@@ -40,7 +40,9 @@ def train():
     tf.summary.scalar('loss', loss)
     merged_summary = tf.summary.merge_all()
     global_step = tf.Variable(0, trainable = False)
-    lr = tf.train.exponential_decay(config.learning_rate, global_step, decay_steps = 1000, decay_rate = 0.8)
+    lr = tf.train.exponential_decay(config.learning_rate, global_step, decay_steps = 2000, decay_rate = 0.8)
+    # decay_steps = 3 * int(config.train_num / config.train_batch_size)
+
     optimizer = tf.train.AdamOptimizer(learning_rate = lr)
     # 如果读取预训练权重，则冻结darknet53网络的变量
     update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
@@ -51,7 +53,7 @@ def train():
         else:
             train_op = optimizer.minimize(loss = loss, global_step = global_step)
     init = tf.global_variables_initializer()
-    saver = tf.train.Saver()
+    saver = tf.train.Saver(max_to_keep=5)
     with tf.Session(config = tf.ConfigProto(log_device_placement = False)) as sess:
         ckpt = tf.train.get_checkpoint_state(config.model_dir)
         if ckpt and tf.train.checkpoint_exists(ckpt.model_checkpoint_path):

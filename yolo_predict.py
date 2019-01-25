@@ -8,7 +8,7 @@ from model.yolo3_model import yolo
 
 
 class yolo_predictor:
-    def __init__(self, obj_threshold, nms_threshold, classes_file, anchors_file):
+    def __init__(self, obj_threshold, nms_iou_threshold, classes_file, anchors_file):
         """
         Introduction
         ------------
@@ -19,7 +19,7 @@ class yolo_predictor:
             nms_threshold: nms阈值
         """
         self.obj_threshold = obj_threshold
-        self.nms_threshold = nms_threshold
+        self.nms_iou_threshold = nms_iou_threshold
         self.classes_path = classes_file
         self.anchors_path = anchors_file
         self.class_names = self._get_class()
@@ -95,7 +95,8 @@ class yolo_predictor:
         for c in range(len(self.class_names)):
             class_boxes = tf.boolean_mask(boxes, mask[:, c])
             class_box_scores = tf.boolean_mask(box_scores[:, c], mask[:, c])
-            nms_index = tf.image.non_max_suppression(class_boxes, class_box_scores, max_boxes_tensor, iou_threshold = self.nms_threshold)
+            nms_index = tf.image.non_max_suppression(class_boxes, class_box_scores, max_boxes_tensor, 
+                                                        iou_threshold = self.nms_iou_threshold, score_threshold=config.nms_score_threshold)
             class_boxes = tf.gather(class_boxes, nms_index)
             class_box_scores = tf.gather(class_box_scores, nms_index)
             classes = tf.ones_like(class_box_scores, 'int32') * c

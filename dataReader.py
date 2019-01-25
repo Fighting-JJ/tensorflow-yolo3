@@ -177,14 +177,13 @@ class Reader:
             # 找出和ground truth box的iou最大的anchor box, 然后将对应不同比例的负责该ground turth box 的位置置为ground truth box坐标
             best_anchor = np.argmax(iou, axis = -1)
             for t, n in enumerate(best_anchor):
-                    if n in anchor_mask[index]:
-                        i = np.floor(true_boxes[t, 0] * grid_shapes[index][1]).astype('int32')
-                        j = np.floor(true_boxes[t, 1] * grid_shapes[index][0]).astype('int32')
-                        k = anchor_mask[index].index(n)
-                        c = true_boxes[t, 4].astype('int32')
-                        y_true[index][j, i, k, 0:4] = true_boxes[t, 0:4]
-                        y_true[index][j, i, k, 4] = 1.
-                        y_true[index][j, i, k, 5 + c] = 1.
+                i = np.floor(true_boxes[t, 0] * grid_shapes[index][1]).astype('int32')
+                j = np.floor(true_boxes[t, 1] * grid_shapes[index][0]).astype('int32')
+                #k = anchor_mask[index].index(n)
+                c = true_boxes[t, 4].astype('int32')
+                y_true[index][j, i, n, 0:4] = true_boxes[t, 0:4]
+                y_true[index][j, i, n, 4] = 1.
+                y_true[index][j, i, n, 5 + c] = 1.
 
 ###################################################################################################################        
         return y_true[0], y_true[1], y_true[2]
@@ -316,7 +315,7 @@ class Reader:
         bbox = tf.transpose(bbox, [1, 0])
         image, bbox = self.Preprocess(image, bbox)
         # 修改为ribbon_Preprocess_true_boxes
-        bbox_true_13, bbox_true_26, bbox_true_52 = tf.py_func(self.ribbon_Preprocess_true_boxes, [bbox], [tf.float32, tf.float32, tf.float32])
+        bbox_true_13, bbox_true_26, bbox_true_52 = tf.py_func(self.Preprocess_true_boxes, [bbox], [tf.float32, tf.float32, tf.float32])
         return image, bbox, bbox_true_13, bbox_true_26, bbox_true_52
 
     def Preprocess(self, image, bbox):

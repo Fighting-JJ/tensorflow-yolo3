@@ -28,7 +28,7 @@ def detect(image_path, model_path, yolo_weights = None):
     image_data = np.expand_dims(image_data, axis = 0)
     input_image_shape = tf.placeholder(dtype = tf.int32, shape = (2,))
     input_image = tf.placeholder(shape = [None, 416, 416, 3], dtype = tf.float32)
-    predictor = yolo_predictor(config.obj_threshold, config.nms_threshold, config.classes_path, config.anchors_path)
+    predictor = yolo_predictor(config.obj_threshold, config.nms_iou_threshold, config.classes_path, config.anchors_path)
     boxes, scores, classes = predictor.predict(input_image, input_image_shape)
     with tf.Session() as sess:
         if yolo_weights is not None:
@@ -82,7 +82,7 @@ def detect(image_path, model_path, yolo_weights = None):
             del draw
         image.show()
         print("done")
-        img_save_path = "F:\\github_working\\version_2_190114\\aloyschen-tensorflow-yolo3\\img_out"
+        img_save_path = "F:\\github_working\\version_2_190114\\aloyschen-tensorflow-yolo3\\single_img_out"
         img_name = "valid_" + image_path.split("\\")[-1]
         final_save_path = os.path.join(img_save_path, img_name)
         image.save(final_save_path)
@@ -102,7 +102,7 @@ def batch_detect(annotation_path, image_path, model_path, yolo_weights = None):
 
     input_image_shape = tf.placeholder(dtype = tf.int32, shape = (2,))
     input_image = tf.placeholder(shape = [None, 416, 416, 3], dtype = tf.float32)
-    predictor = yolo_predictor(config.obj_threshold, config.nms_threshold, config.classes_path, config.anchors_path)
+    predictor = yolo_predictor(config.obj_threshold, config.nms_iou_threshold, config.classes_path, config.anchors_path)
     boxes, scores, classes = predictor.predict(input_image, input_image_shape)
 
     font = ImageFont.truetype(font = 'F:\\github_working\\version_2_190114\\alsochen-tensorflow-yolo3-threeoutput\\tensorflow-yolo3\\font\\FiraMono-Medium.otf', size = np.floor(3e-2 * 416 + 0.5).astype('int32'))
@@ -188,11 +188,16 @@ if __name__ == '__main__':
     else:
         detect(FLAGS.image_file, config.model_dir)
     """
-    annotation_path = "F:\\deeplearning_dataset\\new_ribbon\\split_imge\\split_img_annotation.txt"
-    image_path = "F:\\deeplearning_dataset\\new_ribbon\\split_imge"
-    model_path = "F:\\github_working\\version_2_190114\\alsochen-tensorflow-yolo3-threeoutput\\tensorflow-yolo3\\checkpoint\\model.ckpt-460"
-    batch_detect(annotation_path, image_path, model_path)
-
+    flag = False
+    if flag:
+        annotation_path = "F:\\deeplearning_dataset\\new_ribbon\\split_imge\\split_img_annotation.txt"
+        image_path = "F:\\deeplearning_dataset\\new_ribbon\\split_imge"
+        model_path = "F:\\github_working\\version_2_190114\\alsochen-tensorflow-yolo3-threeoutput\\tensorflow-yolo3\\checkpoint\\net_changged\\model.ckpt-3870"
+        batch_detect(annotation_path, image_path, model_path)
+    else:
+        image_path = "F:\\deeplearning_dataset\\new_ribbon\\split_imge\\1109_(98)_1.jpg"
+        model_path = "F:\\github_working\\version_2_190114\\alsochen-tensorflow-yolo3-threeoutput\\tensorflow-yolo3\\checkpoint\\net_changged\\model.ckpt-3870"
+        detect(image_path, model_path)
 
 
     
