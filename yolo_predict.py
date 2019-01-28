@@ -75,37 +75,38 @@ class yolo_predictor:
             scores_: 物体类别的概率
             classes_: 物体类别
         """
-        anchor_mask = [[6, 7, 8], [3, 4, 5], [0, 1, 2]]
-        boxes = []
-        box_scores = []
-        input_shape = tf.shape(yolo_outputs[0])[1 : 3] * 32
-        # 对三个尺度的输出获取每个预测box坐标和box的分数，score计算为置信度x类别概率
-        for i in range(len(yolo_outputs)):
-            _boxes, _box_scores = self.boxes_and_scores(yolo_outputs[i], self.anchors[anchor_mask[i]], len(self.class_names), input_shape, image_shape)
-            boxes.append(_boxes)
-            box_scores.append(_box_scores)
-        boxes = tf.concat(boxes, axis = 0)
-        box_scores = tf.concat(box_scores, axis = 0)
+        with tf.variable_scope("predict"):
+            anchor_mask = [[6, 7, 8], [3, 4, 5], [0, 1, 2]]
+            boxes = []
+            box_scores = []
+            input_shape = tf.shape(yolo_outputs[0])[1 : 3] * 32
+            # 对三个尺度的输出获取每个预测box坐标和box的分数，score计算为置信度x类别概率
+            for i in range(len(yolo_outputs)):
+                _boxes, _box_scores = self.boxes_and_scores(yolo_outputs[i], self.anchors[anchor_mask[i]], len(self.class_names), input_shape, image_shape)
+                boxes.append(_boxes)
+                box_scores.append(_box_scores)
+            boxes = tf.concat(boxes, axis = 0)
+            box_scores = tf.concat(box_scores, axis = 0)
 
-        mask = box_scores >= self.obj_threshold
-        max_boxes_tensor = tf.constant(max_boxes, dtype = tf.int32)
-        boxes_ = []
-        scores_ = []
-        classes_ = []
-        for c in range(len(self.class_names)):
-            class_boxes = tf.boolean_mask(boxes, mask[:, c])
-            class_box_scores = tf.boolean_mask(box_scores[:, c], mask[:, c])
-            nms_index = tf.image.non_max_suppression(class_boxes, class_box_scores, max_boxes_tensor, 
-                                                        iou_threshold = self.nms_iou_threshold, score_threshold=config.nms_score_threshold)
-            class_boxes = tf.gather(class_boxes, nms_index)
-            class_box_scores = tf.gather(class_box_scores, nms_index)
-            classes = tf.ones_like(class_box_scores, 'int32') * c
-            boxes_.append(class_boxes)
-            scores_.append(class_box_scores)
-            classes_.append(classes)
-        boxes_ = tf.concat(boxes_, axis = 0)
-        scores_ = tf.concat(scores_, axis = 0)
-        classes_ = tf.concat(classes_, axis = 0)
+            mask = box_scores >= self.obj_threshold
+            max_boxes_tensor = tf.constant(max_boxes, dtype = tf.int32)
+            boxes_ = []
+            scores_ = []
+            classes_ = []
+            for c in range(len(self.class_names)):
+                class_boxes = tf.boolean_mask(boxes, mask[:, c])
+                class_box_scores = tf.boolean_mask(box_scores[:, c], mask[:, c])
+                nms_index = tf.image.non_max_suppression(class_boxes, class_box_scores, max_boxes_tensor, 
+                                                            iou_threshold = self.nms_iou_threshold, score_threshold=config.nms_score_threshold)
+                class_boxes = tf.gather(class_boxes, nms_index)
+                class_box_scores = tf.gather(class_box_scores, nms_index)
+                classes = tf.ones_like(class_box_scores, 'int32') * c
+                boxes_.append(class_boxes)
+                scores_.append(class_box_scores)
+                classes_.append(classes)
+            boxes_ = tf.concat(boxes_, axis = 0, name="pred_boxes")
+            scores_ = tf.concat(scores_, axis = 0, name="pred_scores")
+            classes_ = tf.concat(classes_, axis = 0, name="pred_classes")
         return boxes_, scores_, classes_
 
 

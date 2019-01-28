@@ -79,9 +79,9 @@ def train():
                 summary_writer.add_summary(summary, step)
                 summary_writer.flush()
             # 每3个epoch保存一次模型
-            if epoch % 3 == 0:
-                checkpoint_path = os.path.join(config.model_dir, 'model.ckpt')
-                saver.save(sess, checkpoint_path, global_step = global_step)
+                if step % 30 == 0:
+                    checkpoint_path = os.path.join(config.model_dir, 'model.ckpt')
+                    saver.save(sess, checkpoint_path, global_step = global_step)
 
 
 def eval(model_path, min_Iou = 0.5, yolo_weights = None):

@@ -21,6 +21,7 @@ def detect(image_path, model_path, yolo_weights = None):
         model_path: 模型路径
         image_path: 图片路径
     """
+
     image = Image.open(image_path)
     resize_image = letterbox_image(image, (416, 416))
     image_data = np.array(resize_image, dtype = np.float32)
@@ -45,6 +46,7 @@ def detect(image_path, model_path, yolo_weights = None):
                 input_image: image_data,
                 input_image_shape: [image.size[1], image.size[0]]
             })
+        print([out_boxes, out_scores, out_classes])
         print('Found {} boxes for {}'.format(len(out_boxes), 'img'))
         font = ImageFont.truetype(font = 'F:\\github_working\\version_2_190114\\aloyschen-tensorflow-yolo3\\tensorflow-yolo3\\font\\FiraMono-Medium.otf', size = np.floor(3e-2 * image.size[1] + 0.5).astype('int32'))
         thickness = (image.size[0] + image.size[1]) // 300
@@ -117,7 +119,8 @@ def batch_detect(annotation_path, image_path, model_path, yolo_weights = None):
         else:
             saver = tf.train.Saver()
             saver.restore(sess, model_path)
-
+        pred_txt = "F:\\github_working\\version_2_190114\\aloyschen-tensorflow-yolo3\\img_out\\predict_box_label.txt"
+        fp_img_boxes_output = open(pred_txt, 'a')
         fp_test_annotation = open(annotation_path, 'r')
         for img in fp_test_annotation.readlines():
             img_name = img.split()[0]
@@ -137,7 +140,7 @@ def batch_detect(annotation_path, image_path, model_path, yolo_weights = None):
                 })
             print('Found {} boxes for {}'.format(len(out_boxes), 'img'))
         
-
+            
             for i, c in reversed(list(enumerate(out_classes))):
                 predicted_class = predictor.class_names[c]
                 box = out_boxes[i]
@@ -153,6 +156,10 @@ def batch_detect(annotation_path, image_path, model_path, yolo_weights = None):
                 bottom = min(image.size[1], np.floor(bottom + 0.5).astype('int32'))
                 right = min(image.size[0], np.floor(right + 0.5).astype('int32'))
                 print(label, (left, top), (right, bottom))
+                write_str = "{} ({}, {}), ({}, {})"
+                write_content = write_str.format(label, left, top, right, bottom)
+                fp_img_boxes_output.write(write_content)
+                fp_img_boxes_output.write('\n')
 
                 if top - label_size[1] >= 0:
                     text_origin = np.array([left, top - label_size[1]])
@@ -174,6 +181,8 @@ def batch_detect(annotation_path, image_path, model_path, yolo_weights = None):
             final_save_path = os.path.join(img_save_path, img_name)
             image.save(final_save_path)
             print("image:{} save done".format(img_name))
+            fp_img_boxes_output.write("image:{} saved done".format(img_name))
+            fp_img_boxes_output.write('\n')
 
 
 if __name__ == '__main__':
@@ -188,7 +197,7 @@ if __name__ == '__main__':
     else:
         detect(FLAGS.image_file, config.model_dir)
     """
-    flag = False
+    flag = True
     if flag:
         annotation_path = "F:\\deeplearning_dataset\\new_ribbon\\split_imge\\split_img_annotation.txt"
         image_path = "F:\\deeplearning_dataset\\new_ribbon\\split_imge"
